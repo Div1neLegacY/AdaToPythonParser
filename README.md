@@ -1,2 +1,15 @@
-# AdaToPythonParser
-PyPi libadalang integration to parse Ada records into Python code
+```
+python3 -m venv .venv
+```
+
+```
+source .venv/bin/activate
+```
+
+```
+# pip install libadalang
+```
+
+```
+python3 ./main.py
+```
