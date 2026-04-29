@@ -122,7 +122,6 @@ def eval_bound(expr):
             # Attempt to get referenced declaration if it exists.
             # This is how we traverse the AST to find the referenced declaration.
             decl = expr.p_referenced_decl(True)
-            import ipdb; ipdb.set_trace()
             if decl is None:
                 LOGGER.error(f"Unhandled bound case: unresolved name expression: {expr.text}")
                 raise ValueError(f"Cannot resolve: {expr.text}")
