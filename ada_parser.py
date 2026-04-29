@@ -12,53 +12,62 @@ LOGGER.setLevel(logging.DEBUG)
 LOGGER.addHandler(logging.FileHandler('ada_parser_logger_output.log', mode='w'))
 
 
-class PayloadField(TypedDict):
-    """A single entry in a message payload dictionary entry"""
+class RecordComponent(TypedDict):
+    """A single component entry in an Ada Record"""
     name: str
     default: int
     size: int # bit-width of field
 
 
-class MessagePayload(TypedDict):
-    """Full payload entry for the message dictionary"""
-    name: str
-    fields: List[PayloadField]
+class AdaRecord(TypedDict):
+    """Full entry for an Ada Record"""
+    fields: List[RecordComponent]
+    size: int
 
 
-MESSAGE_DICT: Dict[str, MessagePayload] = {}
+RECORD_DICT: Dict[str, AdaRecord] = {}
 
 
 def add_dict_entry(
     name: str,
     fields: List[Mapping[str, int]],
+    size: int,
 ) -> None:
     """
-    Adds a new entry to the message dictionary
+    Adds a new entry to the record dictionary
     """
-    MESSAGE_DICT[name] = {
-        "name": name,
+    RECORD_DICT[name] = {
         "fields": list(fields), # shallow copy to protect dictionary entry
+        "size": size,
     }
 
 
 def get_record_rep_clause(file, record_name):
 
     # Find record in Ada source if it was not already found and loaded into the internal dictionary
-    if record_name not in MESSAGE_DICT:
+    if record_name not in RECORD_DICT:
         # Attempt to find the record in the Ada source file
         record, fields = _get_record_rep_clause(file, record_name)
 
         # Add to dictionary when valid
         if record and fields:
-            LOGGER.info(f"Successfully loaded {record_name} from {file}")
+
+            # Calculate record size
+            record_size = 0
+            for field in fields:
+                record_size += field['size']
+
             add_dict_entry(
                 name=record_name,
                 fields=fields,
+                size=record_size,
             )
+            LOGGER.info(f"Successfully loaded {record_name} from {file}")
+            LOGGER.info(RECORD_DICT[record_name])
         else:
             return None, None
 
-    return copy.deepcopy(MESSAGE_DICT[record_name])
+    return copy.deepcopy(RECORD_DICT[record_name])
 
 
 def _get_record_rep_clause(file, record_name):
@@ -173,6 +182,18 @@ def eval_bound(expr):
 
             LOGGER.error(f"Unhandled bound case: unsupported CallExpr shape: {expr.text}")
             raise ValueError(f"Unsupported CallExpr shape: {expr.text}")
+
+        case _ if expr.is_a(lal.AttributeRef):
+            # Get the referenced declaration
+            decl = expr.f_prefix.p_referenced_decl()
+
+            # Verify the type definition is a RecordTypeDef
+            if decl.f_type_def.is_a(lal.RecordTypeDef):
+                file = expr.f_prefix.unit.filename
+                record_name = expr.f_prefix.text
+                # Get the record rep clause and return back size
+                record = get_record_rep_clause(file, record_name)
+                return record['size']
 
         case _:
             LOGGER.error(f"Unhandled bound case: unsupported node kind '{expr.kind_name}' for expression: {expr.text}")
