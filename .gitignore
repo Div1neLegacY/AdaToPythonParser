@@ -1,0 +1,5 @@
+# Don't want to share the libadalang crate
+**/libadalang_*
+**/*.log
+__pycache__/
+.venv/
