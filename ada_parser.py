@@ -184,6 +184,7 @@ def eval_bound(expr):
             raise ValueError(f"Unsupported CallExpr shape: {expr.text}")
 
         case _ if expr.is_a(lal.AttributeRef):
+            # Possible nested Record case
             # Get the referenced declaration
             decl = expr.f_prefix.p_referenced_decl()
 
